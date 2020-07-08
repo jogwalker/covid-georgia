@@ -1,0 +1,186 @@
+---
+title: "Covid in Georgia"
+author: "Josephine Walker"
+date: "07/07/2020"
+output: word_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+## Intro
+
+Georgia reported their first confirmed case of Covid-19 on 26 February 2020. As of 2 July 2020, only 939 confirmed cases and 15 deaths have been reported. The success of Georgia's limitation of spread of Covid-19 can be attributed to early non-pharmaceutical interventions including closing schools (early March), closing borders and mandatory quarantining of international arrivals, lockdown of individual affected areas (late March) and full lockdown throughout the country (30 March). Alongside this, they have implemented extensive contact tracing and testing, and all confirmed cases are treated in hospital. There is regular screening of key workers. As of 2 July 2020, 117,701 PCR tests for Covid-19 have been conducted, a rate of more than 30,000 tests per million population. 
+
+Here we use test data and contact tracing data collected by the National Center for Disease Control (NCDC) in Georgia to characterize the epidemic in Georgia. This includes demographics of those infected compared to the general population, symptom and death rates by age, and rates of transmission to different types of contacts. We also calculate the secondary attack rate for different types of contacts and overall number of secondary cases per primary case (observed reproductive number).
+
+##  Methods
+
+### Data collection
+
+- Types of test used, criteria for testing (case identification)
+- More detail on policies - maybe in a figure
+- Ethics waiver from NCDC and registered in Bristol
+
+### Analysis
+
+- De-identified personal IDs used to link contact tracing database to confirmed cases
+- Data cut off date?
+- Analysis conducted in R
+- Can we compare demographics of infection to national demographics? geostat or other source?
+
+
+## Results
+
+After data cleaning how many data points do we have
+
+
+```{r readdat}
+setwd("~/git/covid-georgia/")
+
+library(readxl)
+
+
+
+tcols <- c("skip","skip","skip","text","logical","date",rep("text",7),"date","text","text","date",rep("text",8),"date","text","text")
+testing <- read_xlsx("./data/testing2020-06-24.xlsx",col_types=tcols)
+
+
+hcols <- c("skip","text","text","numeric","numeric","numeric","text","numeric",rep("text",6),"date","date","skip","text","text","text","date",rep("text",13),"skip","text","skip","text","text","text","skip","text","text",rep("text",36))
+hospital <- read_xlsx("./data/COVID19treated.xlsx",col_types=hcols)
+
+ccols <- c("")
+contacts <- read_xlsx("./data/contacts30June.xlsx",skip=1)
+```
+
+
+```{r cleandat} 
+
+hospital$`Hospitalization date (day / month / year)`
+hospital$length <- hospital$`discharge date (day / month / year)` - hospital$`Hospitalization date (day / month / year)`
+hospital$diagnosisdate <- as.Date(hospital$`Date of diagnosis`,format = "%d.%m.%Y") 
+hospital$hosplag <- as.Date(hospital$`Hospitalization date (day / month / year)`) - hospital$diagnosisdate
+
+max(testing$BirthDate,na.rm=T)
+min(testing$BirthDate,na.rm=T)
+
+
+```
+
+
+### Table of demographics of those infected (treated database)
+Hospitalization data and comorbidities were available for `nrow (hospital)` diagnosed patients with hospitalization dates ranging from `r min(hospital$`Hospitalization date (day / month / year)`,na.rm=T)` to `r max(hospital$`Hospitalization date (day / month / year)`,na.rm=T)`.
+
+```{r treated}
+library(data.table)
+library(arsenal)
+
+# Customizing the table
+my_controls <- tableby.control(
+  test = T,
+  total = T,
+  numeric.test = "kwt", cat.test = "chisq",
+  numeric.stats = c("meansd", "medianq1q3", "range", "Nmiss2"),
+  date.test = "kwt",
+  date.stats=c("Nmiss","median","range"),
+  cat.stats = c("countpct", "Nmiss2"),
+  stats.labels = list(
+    meansd = "Mean (SD)",
+    medianq1q3 = "Median (Q1, Q3)",
+    range = "Min - Max",
+    Nmiss2 = "Missing"
+  )
+)
+
+my_labelsH <- list(
+  Age = "Age (years)",
+  `Age group` = "Age group",
+  Gender = "Gender",
+  length = "Length of hospital stay",
+  hosplag = "Time from diagnosis to hospitalization",
+  `reffered to intensive care` = "Intensive care",
+  `Severity of the disease` = "Disease severity",
+  `Date of diagnosis` = "Diagnosis date",
+  `Hospitalization date (day / month / year)` = "Hospitalization date",
+  `Place of exposure - country` = "Place of exposure", # also have region of Georgia
+  `Medical staff` = "Medical staff",
+  `Asymptomatic` = "Asymptomatic"
+) # Lots more to add
+
+tableH <- tableby(Gender ~ .,
+  data = hospital[,c("Age","Age group","reffered to intensive care","Severity of the disease","Gender","length","hosplag")],
+  control = my_controls
+)
+ 
+kable(summary(tableH,
+  labelTranslations = my_labelsH,
+  title = "Characteristics of COVID-19 patients"
+))
+
+
+
+```
+
+Table of demographics of those tested (tested database)
+
+Table of symptom and death rates by age and gender (treated database)
+
+Rates of transmission by type of contact, gender and age of index case
+
+Contact by age groups and type of contact
+
+Transmission by age groups and type of contact
+
+Total number of secondary cases per primary case
+
+Plot of contact network
+
+```{r network}
+library(igraph)
+
+contacts$missingPatID <- is.na(contacts$`Patient unique ID`)
+contacts$missingPatID[contacts$missingPatID] <- 1:sum(contacts$missingPatID)
+contacts$newPatID <- ifelse(is.na(contacts$`Patient unique ID`),paste("missingP",contacts$missingPatID,sep=""),contacts$`Patient unique ID`)
+
+contacts$missingCID <- is.na(contacts$`Contact ID`)
+contacts$missingCID[contacts$missingCID] <- 1:sum(contacts$missingCID)
+contacts$newCID <- ifelse(is.na(contacts$`Contact ID`),paste("missingC",contacts$missingCID,sep=""),contacts$`Contact ID`)
+
+
+colors <- as.factor(contacts$`Confirmed Case`)
+levels(colors) <-c( "blue","gray50","yellow")
+
+
+edges <- as.matrix(contacts[,c("newPatID","newCID")])
+g1 <- graph_from_edgelist(edges)
+
+edge_attr(g1,"type") <- contacts$`Contact type`
+edge_attr(g1,"transmission") <- colors
+
+plot.igraph(g1,vertex.label=NA,edge.color=edge_attr(g1)$transmission,vertex.size=igraph::degree(g1)-1)
+
+
+
+table(table(contacts$newPatID)) # 607 only have one contact (one row for that PID)
+table(table(contacts$`Patient unique ID`,useNA = "ifany")) #357 have one contact so the NA are all added here of course.
+
+g2 <- graph_from_edgelist(edges[!is.na(contacts$`Patient unique ID`),]) #2632 contacts 
+
+g3 <- graph_from_edgelist(edges[!is.na(contacts$`Patient unique ID`) & !is.na(contacts$`Contact ID`),])
+
+plot.igraph(g3,vertex.label=NA,vertex.size=3)
+
+
+```
+
+
+
+
+## Discussion
+
+- main outcomes
+- limitations of study
+- comparison to other contact tracing studies (Bi, etc.)
+- comparison to other countries in the region
+- understanding how and why the response was able to be so strong (eg HCV testing and treatment infrastructure)
