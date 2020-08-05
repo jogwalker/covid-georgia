@@ -1,7 +1,7 @@
 ---
 title: "Covid in Georgia"
 author: "Josephine Walker"
-date: "07/07/2020"
+date: "31/07/2020"
 output: word_document
 ---
 
@@ -19,29 +19,30 @@ Here we use test data and contact tracing data collected by the National Center 
 
 ### Data collection
 
-- Types of test used, criteria for testing (case identification)
+- Types of test used, criteria for testing (case identification).
+  - A variety of test types were used, here we present the results from antigen tests confirming current infection, primarily real time PCR tests. [In the database as confirmation test result]
+  - Data exported on 24 June 2020 [match numbers in intro to data we have]
 - More detail on policies - maybe in a figure
 - Ethics waiver from NCDC and registered in Bristol
 
 ### Analysis
 
 - De-identified personal IDs used to link contact tracing database to confirmed cases
-- Data cut off date?
+- Data cut off date 24 June 2020
 - Analysis conducted in R
 - Can we compare demographics of infection to national demographics? geostat or other source?
 
 
 ## Results
 
-After data cleaning how many data points do we have
 
 
-```{r readdat}
+```{r readdat,warning=FALSE}
 setwd("~/git/covid-georgia/")
 
 library(readxl)
-
-
+library(lubridate)
+library(dplyr)
 
 tcols <- c("skip","skip","skip","text","logical","date",rep("text",7),"date","text","text","date",rep("text",8),"date","text","text")
 testing <- read_xlsx("./data/testing2020-06-24.xlsx",col_types=tcols)
@@ -51,28 +52,31 @@ hcols <- c("skip","text","text","numeric","numeric","numeric","text","numeric",r
 hospital <- read_xlsx("./data/COVID19treated.xlsx",col_types=hcols)
 
 ccols <- c("")
-contacts <- read_xlsx("./data/contacts30June.xlsx",skip=1)
+contacts <- read_xlsx("./data/contacts30June_updated.xlsx",skip=1)
 ```
 
 
 ```{r cleandat} 
 
-hospital$`Hospitalization date (day / month / year)`
-hospital$length <- hospital$`discharge date (day / month / year)` - hospital$`Hospitalization date (day / month / year)`
-hospital$diagnosisdate <- as.Date(hospital$`Date of diagnosis`,format = "%d.%m.%Y") 
-hospital$hosplag <- as.Date(hospital$`Hospitalization date (day / month / year)`) - hospital$diagnosisdate
 
-max(testing$BirthDate,na.rm=T)
-min(testing$BirthDate,na.rm=T)
 
 
 ```
 
 
 ### Table of demographics of those infected (treated database)
-Hospitalization data and comorbidities were available for `nrow (hospital)` diagnosed patients with hospitalization dates ranging from `r min(hospital$`Hospitalization date (day / month / year)`,na.rm=T)` to `r max(hospital$`Hospitalization date (day / month / year)`,na.rm=T)`.
+Hospitalization data and comorbidities were available for `r nrow(hospital)` diagnosed patients with hospitalization dates ranging from `r min(hospital$hospdate,na.rm=T)` to `r max(hospital$hospdate,na.rm=T)`. Could add more detail here on particular symptoms if of interest.
 
 ```{r treated}
+# hospital$`Hospitalization date (day / month / year)`
+hospital$length <- hospital$`discharge date (day / month / year)` - hospital$`Hospitalization date (day / month / year)`
+hospital$diagnosisdate <- as.Date(hospital$`Date of diagnosis`,format = "%d.%m.%Y") 
+hospital$hospdate <- as.Date(hospital$`Hospitalization date (day / month / year)`) 
+hospital$hosplag <- hospital$hospdate - hospital$diagnosisdate
+hospital$outcome <- as.factor(hospital$`The result of hospitalization`)
+
+
+
 library(data.table)
 library(arsenal)
 
@@ -101,19 +105,20 @@ my_labelsH <- list(
   hosplag = "Time from diagnosis to hospitalization",
   `reffered to intensive care` = "Intensive care",
   `Severity of the disease` = "Disease severity",
-  `Date of diagnosis` = "Diagnosis date",
+  diagnosisdate = "Diagnosis date",
   `Hospitalization date (day / month / year)` = "Hospitalization date",
   `Place of exposure - country` = "Place of exposure", # also have region of Georgia
   `Medical staff` = "Medical staff",
-  `Asymptomatic` = "Asymptomatic"
+  `Asymptomatic` = "Asymptomatic",
+  outcome = "Outcome"
 ) # Lots more to add
 
 tableH <- tableby(Gender ~ .,
-  data = hospital[,c("Age","Age group","reffered to intensive care","Severity of the disease","Gender","length","hosplag")],
+  data = hospital[,c("Age","Age group","reffered to intensive care","Severity of the disease","Gender","length","outcome","diagnosisdate", "Place of exposure - country","Asymptomatic")], #"Hospitalization date (day / month / year)","hosplag",
   control = my_controls
 )
  
-kable(summary(tableH,
+knitr::kable(summary(tableH,
   labelTranslations = my_labelsH,
   title = "Characteristics of COVID-19 patients"
 ))
@@ -122,23 +127,71 @@ kable(summary(tableH,
 
 ```
 
-Table of demographics of those tested (tested database)
+###Table of demographics of those tested (tested database)
 
-Table of symptom and death rates by age and gender (treated database)
+A total of `r dim(testing[!is.na(testing$"Confirmation Test Result"),])[1]` antigen (PCR) test results were available, with `r  length(unique(testing$PersonalID[!is.na(testing$"Confirmation Test Result")]))` unique individual patient IDs recorded. 
 
-Rates of transmission by type of contact, gender and age of index case
 
-Contact by age groups and type of contact
+```{r tested}
+testing$BirthDate2 <- as.Date(testing$BirthDate)
+max(testing$BirthDate2,na.rm=T)
+min(testing$BirthDate2,na.rm=T)
+testing$BirthDate2[testing$BirthDate2 >= as.Date("2020-07-01")] <- NA
+testing$BirthDate2[testing$BirthDate2 <= as.Date("1915-07-01")] <- NA
+# sum(is.na(testing$BirthDate))
+# sum(is.na(testing$BirthDate2)) # 42 different
+testing$Age <- as.numeric(floor((as.Date("2020-07-01")-testing$BirthDate2)/365))
 
-Transmission by age groups and type of contact
+## not sure about this
+# testing$Testname2 <- as.factor(testing$`Test Name`)
+# levels(testing$Testname2)
+# testing$rtPCR <- ifelse(as.numeric(testing$Testname2) %in% c(1,3,4,7),TRUE,FALSE)
 
-Total number of secondary cases per primary case
+testingF <- testing %>% filter(!is.na(`Confirmation Test Result`))
 
-Plot of contact network
+TU <- unique(testingF$PersonalID)
+testingU <- testingF %>% arrange(PersonalID,`Test Date`) %>% group_by(PersonalID) %>% summarise(IsForeigner=first(IsForeigner),Age=first(Age),Gender=first(Gender),Fever=first(Fever),Cough=first(Cough),`Risk Group`=first(`Risk Group`),`Confirmation Test Result` = first(`Confirmation Test Result`))
 
-```{r network}
-library(igraph)
+my_labelsT <- list(
+  Foreigner = "IsForeigner",
+  Age = "Age",
+  Gender = "Gender",
+  Fever = "Fever",
+  Cough = "Cough",
+  `Risk group` = "Risk Group",
+  `Test result` = "Confirmation Test Result"#,
+  # Country = "Country"
+  ) 
 
+tableT <- tableby(`Confirmation Test Result` ~ .,
+  data = testingF[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
+  control = my_controls
+)
+ 
+knitr::kable(summary(tableT,
+  labelTranslations = my_labelsT,
+  title = "Characteristics of COVID-19 tests"
+))
+
+
+tableTU <- tableby(`Confirmation Test Result` ~ .,
+  data = testingU[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
+  control = my_controls
+)
+ 
+knitr::kable(summary(tableTU,
+  labelTranslations = my_labelsT,
+  title = "Characteristics of COVID-19 testing - unique patient IDs"
+))
+
+
+```
+
+## Contact networks
+
+Index cases summary
+
+```{r contacts,echo=TRUE}
 contacts$missingPatID <- is.na(contacts$`Patient unique ID`)
 contacts$missingPatID[contacts$missingPatID] <- 1:sum(contacts$missingPatID)
 contacts$newPatID <- ifelse(is.na(contacts$`Patient unique ID`),paste("missingP",contacts$missingPatID,sep=""),contacts$`Patient unique ID`)
@@ -146,6 +199,111 @@ contacts$newPatID <- ifelse(is.na(contacts$`Patient unique ID`),paste("missingP"
 contacts$missingCID <- is.na(contacts$`Contact ID`)
 contacts$missingCID[contacts$missingCID] <- 1:sum(contacts$missingCID)
 contacts$newCID <- ifelse(is.na(contacts$`Contact ID`),paste("missingC",contacts$missingCID,sep=""),contacts$`Contact ID`)
+
+contacts$case <- as.factor(contacts$`Confirmed Case`)
+levels(contacts$case) <- c(FALSE,NA,TRUE)
+
+contacts$Age[contacts$Age=="*"] <- NA
+contacts$Age <- as.numeric(contacts$Age)
+contacts$Gender[contacts$Gender=="male"] <- "Male"
+# rate of transmission by type of contact
+
+contactsType <- contacts %>% filter(`Contact type`!="unknown")
+contactsType$Coworker <- contactsType$`Contact type`=="Co-worker"
+contactsType$Family <- contactsType$`Contact type`=="Family member"
+contactsType$Friend <- contactsType$`Contact type`=="Friend"
+contactsType$Medical <- contactsType$`Contact type`=="Medical Personnel"
+contactsType$Neighbour <- contactsType$`Contact type`=="Neighbour"
+
+mType <- glm(data=contactsType,case ~ `Contact type`,family=binomial)
+summary(mType)
+
+mType2 <- glm(data=contactsType,case ~ Family,family=binomial)
+summary(mType2)
+
+mType3 <- glm(data=contactsType,case ~ Coworker,family=binomial)
+summary(mType3)
+
+mType4 <- glm(data=contactsType,case ~ Friend,family=binomial)
+summary(mType4)
+
+mType5 <- glm(data=contactsType,case ~ Medical,family=binomial)
+summary(mType5)
+
+mType6 <- glm(data=contactsType,case ~ Neighbour,family=binomial)
+summary(mType6)
+
+####
+# age and gender of index case
+mAS <- glm(data=contacts,case ~ Age + Gender, family=binomial)
+summary(mAS)
+mA <- glm(data=contacts,case ~ Age , family=binomial)
+summary(mA)
+mS <- glm(data=contacts,case ~ Gender, family=binomial)
+summary(mS)
+
+
+### merge contacts with screening data
+testsub <- testingU %>% filter(!is.na(PersonalID)) %>% select(PersonalID,Gender,Age)
+
+contact.merge <- left_join(contacts,testsub,by=c("Contact ID"="PersonalID"))
+contactsType.m <- contact.merge %>% filter(`Contact type`!="unknown")
+contactsType.m$Coworker <- contactsType.m$`Contact type`=="Co-worker"
+contactsType.m$Family <- contactsType.m$`Contact type`=="Family member"
+contactsType.m$Friend <- contactsType.m$`Contact type`=="Friend"
+contactsType.m$Medical <- contactsType.m$`Contact type`=="Medical Personnel"
+contactsType.m$Neighbour <- contactsType.m$`Contact type`=="Neighbour"
+
+
+m2 <- glm(data=contact.merge,case ~ Age.x + Age.y,family=binomial)
+summary(m2)
+
+m3 <- glm(data=contact.merge,case ~ Age.x + Age.y + Gender.x + Gender.y + `Contact type`,family=binomial)
+summary(m3)
+
+m4 <- glm(data=contactsType.m,case ~ Age.x + Age.y + Gender.x + Gender.y + Coworker + Family + Friend + Medical + Neighbour,family=binomial)
+summary(m4)
+
+m5 <- glm(data=contactsType.m,case ~  Age.y + Coworker + Family + Friend + Medical,family=binomial)
+summary(m5)
+
+
+```
+
+Rates of transmission by type of contact, gender and age of index case - table as in Bi
+
+Contact by age groups and type of contact
+
+```{r agegroups}
+contact.merge$AgeGroup.X <- with(contact.merge,ifelse(Age.x < 10, "0-9",ifelse(Age.x < 20, "10-19",ifelse(Age.x < 30, "20-29",ifelse(Age.x < 40, "30-39",ifelse(Age.x < 50, "40-49",ifelse(Age.x < 60, "50-59",ifelse(Age.x < 70, "60-69","70+"))))))))
+
+contact.merge$AgeGroup.Y <- with(contact.merge,ifelse(Age.y < 10, "0-9",ifelse(Age.y < 20, "10-19",ifelse(Age.y < 30, "20-29",ifelse(Age.y < 40, "30-39",ifelse(Age.y < 50, "40-49",ifelse(Age.y < 60, "50-59",ifelse(Age.y < 70, "60-69","70+"))))))))
+
+d <- table(contact.merge$AgeGroup.X, contact.merge$AgeGroup.Y)
+n <- table(contact.merge$AgeGroup.X, contact.merge$AgeGroup.Y,contact.merge$case)
+n1 <- table(contact.merge$AgeGroup.X[contact.merge$case==TRUE], contact.merge$AgeGroup.Y[contact.merge$case==TRUE])
+n2 <- table(contact.merge$AgeGroup.X[contact.merge$case==FALSE], contact.merge$AgeGroup.Y[contact.merge$case==FALSE])
+
+n1/d
+n2/d
+```
+
+Transmission by age groups and type of contact
+
+Total number of secondary cases per primary case
+
+```{r overall}
+table(contacts$case)
+
+
+```
+
+Plot of contact network
+
+```{r network}
+library(igraph)
+
+
 
 
 colors <- as.factor(contacts$`Confirmed Case`)
