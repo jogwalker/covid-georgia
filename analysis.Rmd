@@ -174,6 +174,11 @@ knitr::kable(summary(tableT,
 ))
 
 
+```
+
+
+```{r }
+
 tableTU <- tableby(`Confirmation Test Result` ~ .,
   data = testingU[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
   control = my_controls
@@ -255,8 +260,14 @@ contactsType.m$Medical <- contactsType.m$`Contact type`=="Medical Personnel"
 contactsType.m$Neighbour <- contactsType.m$`Contact type`=="Neighbour"
 
 
-m2 <- glm(data=contact.merge,case ~ Age.x + Age.y,family=binomial)
+m2 <- glm(data=contact.merge,case ~ Age.x,family=binomial)
 summary(m2)
+
+
+require(MASS)
+
+exp(cbind(coef(m2), confint(m2)))  
+
 
 m3 <- glm(data=contact.merge,case ~ Age.x + Age.y + Gender.x + Gender.y + `Contact type`,family=binomial)
 summary(m3)
@@ -285,7 +296,45 @@ n1 <- table(contact.merge$AgeGroup.X[contact.merge$case==TRUE], contact.merge$Ag
 n2 <- table(contact.merge$AgeGroup.X[contact.merge$case==FALSE], contact.merge$AgeGroup.Y[contact.merge$case==FALSE])
 
 n1/d
-n2/d
+# n2/d
+
+table(contact.merge$Gender.x,contact.merge$case)
+x1 <- glm(data=contact.merge,case ~ Gender.x,family=binomial)
+summary(x1)
+exp(cbind(coef(x1), confint(x1)))
+
+table(contact.merge$Gender.y,contact.merge$case)
+x2 <- glm(data=contact.merge,case ~ Gender.y,family=binomial)
+summary(x2)
+exp(cbind(coef(x2), confint(x2)))
+
+table(contact.merge$AgeGroup.X,contact.merge$case)
+x3 <- glm(data=contact.merge,case ~ relevel(as.factor(AgeGroup.X),ref="50-59"),family=binomial)
+summary(x3)
+exp(cbind(coef(x3), confint(x3)))
+
+table(contact.merge$AgeGroup.Y,contact.merge$case)
+x4 <- glm(data=contact.merge,case ~ relevel(as.factor(AgeGroup.Y),ref="50-59"),family=binomial)
+summary(x4)
+exp(cbind(coef(x4), confint(x4)))
+
+table(contact.merge$`Contact type`,contact.merge$case)
+x5 <- glm(data=contact.merge,case ~ relevel(as.factor(`Contact type`),ref="Family member"),family=binomial)
+summary(x5)
+exp(cbind(coef(x5), confint(x5)))
+
+x6 <- glm(data=contact.merge,case ~ relevel(as.factor(AgeGroup.Y),ref="50-59")+ relevel(as.factor(AgeGroup.X),ref="50-59")+ relevel(as.factor(`Contact type`),ref="Family member") + Gender.x + Gender.y,family=binomial)
+summary(x6)
+x6b <- exp(cbind(coef(x6), confint(x6)))
+
+library(ggplot2)
+contact.F <- contact.merge %>% filter(`Contact type`=="Family member" & !is.na(AgeGroup.Y))
+ggplot(data=contact.F,aes(x=AgeGroup.X,y=AgeGroup.Y)) + geom_count() + xlab("Age group of confirmed case") + ylab("Age group of contact")  + geom_count(data=contact.F[contact.F$case==TRUE,],aes(x=AgeGroup.X,y=AgeGroup.Y),color="blue")
+
+x7 <- glm(data=contact.merge[contact.merge$`Contact type`=="Family member",],case ~ relevel(as.factor(AgeGroup.Y),ref="50-59")*relevel(as.factor(AgeGroup.X),ref="50-59"),family=binomial)
+summary(x7)
+exp(cbind(coef(x7), confint(x7)))
+
 ```
 
 Transmission by age groups and type of contact
@@ -303,10 +352,10 @@ Plot of contact network
 ```{r network}
 library(igraph)
 
+sum(unique(contact.merge$newCID) %in% contact.merge$`Patient unique ID`)
 
 
-
-colors <- as.factor(contacts$`Confirmed Case`)
+colors <- as.factor(contacts$case)
 levels(colors) <-c( "blue","gray50","yellow")
 
 
@@ -323,12 +372,42 @@ plot.igraph(g1,vertex.label=NA,edge.color=edge_attr(g1)$transmission,vertex.size
 table(table(contacts$newPatID)) # 607 only have one contact (one row for that PID)
 table(table(contacts$`Patient unique ID`,useNA = "ifany")) #357 have one contact so the NA are all added here of course.
 
+g <- graph_from_edgelist(edges)
+
 g2 <- graph_from_edgelist(edges[!is.na(contacts$`Patient unique ID`),]) #2632 contacts 
 
-g3 <- graph_from_edgelist(edges[!is.na(contacts$`Patient unique ID`) & !is.na(contacts$`Contact ID`),])
+g3 <- graph_from_edgelist(edges[!is.na(contacts$`Contact ID`),])
+edge_attr(g3,"type") <- contacts$`Contact type`
+edge_attr(g3,"transmission") <- colors
 
 plot.igraph(g3,vertex.label=NA,vertex.size=3)
 
+dcg <- igraph::decompose(g)
+sapply(dcg,diameter)
+farthest_vertices(dcg[[6]])
+
+sapply(dcg,degree)
+
+
+dcg3 <-  igraph::decompose(g3)
+
+table(sapply(dcg3,diameter)  )
+
+diam <- sapply(dcg3,diameter)
+dcg3.b <- dcg3[diam==4]
+
+plot.igraph(dcg3.b[[1]],vertex.label=NA,edge.color=edge_attr(dcg3.b[[1]])$transmission)
+  
+
+
+library(network)
+
+n1 <- network(edges, matrix.type = "edgelist", ignore.eval = FALSE)
+
+
+library(loop)
+
+decomp(edges)
 
 ```
 
