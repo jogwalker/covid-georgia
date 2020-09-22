@@ -43,6 +43,7 @@ setwd("~/git/covid-georgia/")
 library(readxl)
 library(lubridate)
 library(dplyr)
+library(ggplot2)
 
 tcols <- c("skip","skip","skip","text","logical","date",rep("text",7),"date","text","text","date",rep("text",8),"date","text","text")
 testing <- read_xlsx("./data/testing2020-06-24.xlsx",col_types=tcols)
@@ -56,8 +57,20 @@ contacts <- read_xlsx("./data/contacts30June_updated.xlsx",skip=1)
 ```
 
 
-```{r cleandat} 
+```{r fig1} 
 
+owid <- read.csv("owid-covid-data.csv")
+
+owidG <- owid %>% filter(location=="Georgia")
+owidG$date2 <- as.Date(owidG$date)
+
+c1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-06-24")) %>% ggplot(aes(x=date2,y=new_cases)) + geom_bar(stat="identity",width=0.8,position=position_dodge()) + theme_minimal() + ylab("New cases per day") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") #+ geom_vline(xintercept=as.Date("2020-06-24"),color="red")
+
+c2 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-06-24")) %>% ggplot(aes(x=date2,y=total_cases)) + geom_line() + theme_minimal() + ylab("Cumulative cases") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
+
+c3 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-06-24")) %>% ggplot(aes(x=date2,y=total_cases_per_million)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
+
+d1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-06-24")) %>% ggplot(aes(x=date2,y=total_deaths)) + geom_line() + theme_minimal() + ylab("Cumulative deaths") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
 
 
 
@@ -279,6 +292,7 @@ m5 <- glm(data=contactsType.m,case ~  Age.y + Coworker + Family + Friend + Medic
 summary(m5)
 
 
+
 ```
 
 Rates of transmission by type of contact, gender and age of index case - table as in Bi
@@ -329,9 +343,34 @@ x6b <- exp(cbind(coef(x6), confint(x6)))
 
 library(ggplot2)
 contact.F <- contact.merge %>% filter(`Contact type`=="Family member" & !is.na(AgeGroup.Y))
-ggplot(data=contact.F,aes(x=AgeGroup.X,y=AgeGroup.Y)) + geom_count() + xlab("Age group of confirmed case") + ylab("Age group of contact")  + geom_count(data=contact.F[contact.F$case==TRUE,],aes(x=AgeGroup.X,y=AgeGroup.Y),color="blue")
+ggplot(data=contact.F,aes(x=AgeGroup.X,y=AgeGroup.Y)) + geom_count() + xlab("Age group of confirmed case") + ylab("Age group of contact")  + geom_count(data=contact.F[contact.F$case==TRUE,],aes(x=AgeGroup.X,y=AgeGroup.Y),color="grey") + theme_minimal()
 
-x7 <- glm(data=contact.merge[contact.merge$`Contact type`=="Family member",],case ~ relevel(as.factor(AgeGroup.Y),ref="50-59")*relevel(as.factor(AgeGroup.X),ref="50-59"),family=binomial)
+ggplot(data=contact.F,aes(x=AgeGroup.X,y=AgeGroup.Y)) + geom_bin2d() + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal()
+ggplot(data=contact.F[contact.F$case==TRUE,],aes(x=AgeGroup.X,y=AgeGroup.Y)) + geom_bin2d() + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal()
+
+
+CS <- contact.F %>% group_by(AgeGroup.X,AgeGroup.Y) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n)
+CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=n)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Number of contacts by age group")
+CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=p)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Proportion of contacts leading to transmission")
+
+CS2b <- contact.merge %>% filter(!is.na(`Patient unique ID`)) %>% group_by(`Patient unique ID`) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n) 
+CS2 <- contact.F %>% filter(!is.na(`Patient unique ID`)) %>% group_by(`Patient unique ID`) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n) 
+
+
+hist(CS2$n)
+CS2 %>% ggplot(aes(x=n)) + geom_histogram(binwidth=1) + geom_histogram(aes(x=case),binwidth=1,fill="gray") + theme_minimal() + xlab("Number of contacts")
+
+CS2b %>% ggplot(aes(x=n)) + geom_histogram(binwidth=1) + theme_minimal() + xlab("Number of contacts")
+CS2b %>% ggplot(aes(x=case)) + geom_histogram(binwidth=1) + theme_minimal() + xlab("Number of contacts") + xlim(c(0,30))
+
+
+contact.mergeF <- contact.merge %>% filter(`Contact type`=="Family member")
+contact.mergeF$AgeGroup.X <- relevel(as.factor(contact.mergeF$AgeGroup.X),ref="50-59")
+contact.mergeF$AgeGroup.Y <- relevel(as.factor(contact.mergeF$AgeGroup.Y),ref="50-59")
+levels(contact.mergeF$AgeGroup.X) <- c("40-59","0-19","0-19","20-39","20-39","40-59","60+","60+")
+levels(contact.mergeF$AgeGroup.Y) <- c("40-59","0-19","0-19","20-39","20-39","40-59","60+","60+")
+
+x7 <- glm(data=contact.mergeF,case ~ AgeGroup.X*AgeGroup.Y,family=binomial)
 summary(x7)
 exp(cbind(coef(x7), confint(x7)))
 
