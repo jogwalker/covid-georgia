@@ -1,29 +1,29 @@
-﻿Risk,Group
-   Ambulance driver,Healthcare worker
-   Being on dialysis,Non-covid patient
-   Beneficiary of a fever or COVID clinic,Symptomatic
-   Contact of Confirmed case,Contact of confirmed case
-   Dialysis staff,Healthcare worker
-   Employee of COVID cClinic,Healthcare worker
-   Employee of other hospitals,Healthcare worker
-   Employees of the customs and border checkpoint,Transport/other essential worker
-   Epidemiologist of the NCDC and / or PHC Centers,Healthcare worker
-   Fever and respiratory disease  ,Symptomatic
-   Justice and MIA Customs Services,Transport/other essential worker
-   Other Risk groups,Other 
-   Patients from other hospitals  ,Non-covid patient
-   PCR Lab staff,Healthcare worker
-   PHC staff,Healthcare worker
-   Pneumonia,Symptomatic
-   Psychiatric clininc staff,Healthcare worker
-   Public Transport staff,Transport/other essential worker
-   Quarantine zone beneficiaries  ,Under quarantine/isolation
-   Quarantine zone staff,Healthcare worker
-   Self- isolated  ,Under quarantine/isolation
-   Shelter Beneficiary,Other 
-   Shelter Staff,Transport/other essential worker
-   Standard case definition ,Symptomatic
-   TB confirmed case,Non-covid patient
-   TB staff,Non-covid patient
-   Truck drivers,Transport/other essential worker
-   Missing,Missing
+Risk,Group
+Ambulance driver,Healthcare worker
+Being on dialysis,Non-covid patient
+Beneficiary of a fever or COVID clinic,Symptomatic
+Contact of Confirmed case,Contact of confirmed case
+Dialysis staff,Healthcare worker
+Employee of COVID cClinic,Healthcare worker
+Employee of other hospitals,Healthcare worker
+Employees of the customs and border checkpoint,Transport/other essential worker
+Epidemiologist of the NCDC and / or PHC Centers,Healthcare worker
+Fever and respiratory disease,Symptomatic
+Justice and MIA Customs Services,Transport/other essential worker
+Other Risk groups,Other 
+Patients from other hospitals,Non-covid patient
+PCR Lab staff,Healthcare worker
+PHC staff,Healthcare worker
+Pneumonia,Symptomatic
+Psychiatric clininc staff,Healthcare worker
+Public Transport staff,Transport/other essential worker
+Quarantine zone beneficiaries,Under quarantine/isolation
+Quarantine zone staff,Healthcare worker
+Self- isolated,Under quarantine/isolation
+Shelter Beneficiary,Other 
+Shelter Staff,Transport/other essential worker
+Standard case definition,Symptomatic
+TB confirmed case,Non-covid patient
+TB staff,Non-covid patient
+Truck drivers,Transport/other essential worker
+Missing,Missing

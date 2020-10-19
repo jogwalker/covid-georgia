@@ -115,12 +115,16 @@ hospital$hospdate <- as.Date(hospital$`Hospitalization date (day / month / year)
 hospital$hosplag <- hospital$hospdate - hospital$diagnosisdate
 hospital$outcome <- as.factor(hospital$`The result of hospitalization`)
 
+hospital$agesplit <- ifelse(hospital$Age < 50,"0-49","50+")
 
+regtable <- read.csv("countries.csv")
+hospital$exp <- as.factor(hospital$`Place of exposure - country`)
+hospital2 <- left_join(hospital,regtable,by=c("exp"="Country"))
 
 library(data.table)
 library(arsenal)
 
-# Customizing the table
+######### Customizing the table
 my_controls <- tableby.control(
   test = T,
   total = T,
@@ -139,7 +143,7 @@ my_controls <- tableby.control(
 
 my_labelsH <- list(
   Age = "Age (years)",
-  `Age group` = "Age group",
+  agesplit = "Age group",
   Gender = "Gender",
   length = "Length of hospital stay",
   hosplag = "Time from diagnosis to hospitalization",
@@ -147,14 +151,14 @@ my_labelsH <- list(
   `Severity of the disease` = "Disease severity",
   diagnosisdate = "Diagnosis date",
   `Hospitalization date (day / month / year)` = "Hospitalization date",
-  `Place of exposure - country` = "Place of exposure", # also have region of Georgia
+  Grouping1 = "Place of exposure", # also have region of Georgia
   `Medical staff` = "Medical staff",
   `Asymptomatic` = "Asymptomatic",
   outcome = "Outcome"
 ) # Lots more to add
 
-tableH <- tableby(Gender ~ .,
-  data = hospital[,c("Age","Age group","reffered to intensive care","Severity of the disease","Gender","length","outcome","diagnosisdate", "Place of exposure - country","Asymptomatic")], #"Hospitalization date (day / month / year)","hosplag",
+tableH <- tableby(agesplit ~ .,
+  data = hospital2[,c("Age","agesplit","Gender","Severity of the disease","length","outcome","diagnosisdate", "Grouping1")], #"Hospitalization date (day / month / year)","hosplag",
   control = my_controls
 )
  
@@ -190,7 +194,10 @@ testing$Age <- as.numeric(floor((as.Date("2020-07-01")-testing$BirthDate2)/365))
 testingF <- testing %>% filter(!is.na(`Confirmation Test Result`))
 
 TU <- unique(testingF$PersonalID)
-testingU <- testingF %>% arrange(PersonalID,`Test Date`) %>% group_by(PersonalID) %>% summarise(IsForeigner=first(IsForeigner),Age=first(Age),Gender=first(Gender),Fever=first(Fever),Cough=first(Cough),`Risk Group`=first(`Risk Group`),`Confirmation Test Result` = first(`Confirmation Test Result`))
+testingU <- testingF %>% arrange(PersonalID,`Test Date`) %>% group_by(PersonalID) %>% summarise(IsForeigner=first(IsForeigner),Age=first(Age),Gender=first(Gender),Fever=first(Fever),Cough=first(Cough),`Risk Group`=first(`Risk Group`),`Confirmation Test Result` = first(`Confirmation Test Result`),Date=first(`Test Date`))
+
+grp <- read.csv("groups.csv")
+testingU2 <- left_join(testingU,grp,by=c("Risk Group"="Risk"))
 
 my_labelsT <- list(
   Foreigner = "IsForeigner",
@@ -198,13 +205,13 @@ my_labelsT <- list(
   Gender = "Gender",
   Fever = "Fever",
   Cough = "Cough",
-  `Risk group` = "Risk Group",
+  Group = "Risk Group",
   `Test result` = "Confirmation Test Result"#,
   # Country = "Country"
   ) 
 
 tableT <- tableby(`Confirmation Test Result` ~ .,
-  data = testingF[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
+  data = testingU2[,c("Age","Gender","Fever","Cough","Group","Confirmation Test Result","IsForeigner")], 
   control = my_controls
 )
  
@@ -217,17 +224,17 @@ knitr::kable(summary(tableT,
 ```
 
 
-```{r }
+```{r,eval=FALSE }
 
-tableTU <- tableby(`Confirmation Test Result` ~ .,
-  data = testingU[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
-  control = my_controls
-)
- 
-knitr::kable(summary(tableTU,
-  labelTranslations = my_labelsT,
-  title = "Characteristics of COVID-19 testing - unique patient IDs"
-))
+# tableTU <- tableby(`Confirmation Test Result` ~ .,
+#   data = testingU[,c("Age","Gender","Fever","Cough","Risk Group","Confirmation Test Result","IsForeigner")], 
+#   control = my_controls
+# )
+#  
+# knitr::kable(summary(tableTU,
+#   labelTranslations = my_labelsT,
+#   title = "Characteristics of COVID-19 testing - unique patient IDs"
+# ))
 
 
 ```
@@ -289,9 +296,11 @@ summary(mS)
 
 
 ### merge contacts with screening data
-testsub <- testingU %>% filter(!is.na(PersonalID)) %>% select(PersonalID,Gender,Age)
+testsub <- testingU %>% filter(!is.na(PersonalID)) %>% dplyr::select(PersonalID,Gender,Age,Date)
+testdate <- testingU %>% dplyr::select(PersonalID,Date) ### need to start from full PCR testing database for this
+contacts2 <- left_join(contacts,testdate,by=c("Patient unique ID"="PersonalID"))
 
-contact.merge <- left_join(contacts,testsub,by=c("Contact ID"="PersonalID"))
+contact.merge <- left_join(contacts2,testsub,by=c("Contact ID"="PersonalID"))
 contactsType.m <- contact.merge %>% filter(`Contact type`!="unknown")
 contactsType.m$Coworker <- contactsType.m$`Contact type`=="Co-worker"
 contactsType.m$Family <- contactsType.m$`Contact type`=="Family member"
@@ -431,7 +440,7 @@ table(contacts$case)
 
 Plot of contact network
 
-```{r network}
+```{r network,eval=FALSE}
 library(igraph)
 
 sum(unique(contact.merge$newCID) %in% contact.merge$`Patient unique ID`)
