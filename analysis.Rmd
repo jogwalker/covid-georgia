@@ -296,11 +296,18 @@ summary(mS)
 
 
 ### merge contacts with screening data
-testsub <- testingU %>% filter(!is.na(PersonalID)) %>% dplyr::select(PersonalID,Gender,Age,Date)
-testdate <- testingU %>% dplyr::select(PersonalID,Date) ### need to start from full PCR testing database for this
-contacts2 <- left_join(contacts,testdate,by=c("Patient unique ID"="PersonalID"))
+testsub <- testingU %>% filter(!is.na(PersonalID)) %>% dplyr::select(PersonalID,Gender,Age)
+# testdate <- testingU %>% dplyr::select(PersonalID,Date) ### need to start from full PCR testing database for this
+testdate <- testingF %>% dplyr::select(PersonalID,`Test Date`,`Confirmation Test Result`) %>% filter(!is.na(PersonalID))
+cases <- contacts$`Patient unique ID`
+cases2 <- testdate %>% filter(PersonalID %in% cases)
+cases.firstpos <- cases2 %>% group_by(PersonalID) %>% filter(`Confirmation Test Result` =="pos SARS-CoV-2") %>% summarise(Date=min(`Test Date`))
 
-contact.merge <- left_join(contacts2,testsub,by=c("Contact ID"="PersonalID"))
+contacts2 <- left_join(contacts,cases.firstpos,by=c("Patient unique ID"="PersonalID"))
+
+# contacts.results <- testdate %>% filter(PersonalID %in% contacts2$`Contact ID`) # don't need this after all
+
+contact.merge <- left_join(contacts2,testsub,by=c("Contact ID"="PersonalID")) # don't need date of follow up test
 contactsType.m <- contact.merge %>% filter(`Contact type`!="unknown")
 contactsType.m$Coworker <- contactsType.m$`Contact type`=="Co-worker"
 contactsType.m$Family <- contactsType.m$`Contact type`=="Family member"
@@ -308,6 +315,28 @@ contactsType.m$Friend <- contactsType.m$`Contact type`=="Friend"
 contactsType.m$Medical <- contactsType.m$`Contact type`=="Medical Personnel"
 contactsType.m$Neighbour <- contactsType.m$`Contact type`=="Neighbour"
 
+### numbers in each time period
+length(unique(contact.merge$newPatID[!is.na(contact.merge$Date)]))
+contact.merge$TimePeriod <- NA
+contact.merge$TimePeriod <- with(contact.merge,ifelse(Date<="2020-03-29","Pre-lockdown",ifelse(Date>"2020-03-29" & Date <= "2020-04-27","Lockdown","Restrictions easing")))
+
+contact.merge %>% group_by(TimePeriod) %>% 
+  summarise(cases=length(unique(newPatID)),.groups="keep") # cases in each time period
+
+contact.merge %>% group_by(TimePeriod,newPatID) %>% 
+  summarise(contacts=n(),.groups="keep") %>% group_by(TimePeriod) %>% summarise(mean=mean(contacts),min=min(contacts),max=max(contacts),median=median(contacts)) #  number of contacts in each time period
+
+contact.merge %>% filter(`Contact type`!="unknown") %>% group_by(TimePeriod,newPatID) %>% 
+  summarise(contacts=n(),.groups="keep") %>% group_by(TimePeriod) %>% summarise(mean=mean(contacts),min=min(contacts),max=max(contacts),median=median(contacts)) #  number of contacts in each time period
+
+contact.merge %>% group_by(TimePeriod) %>% 
+  summarise(contacts=n(),newcase=sum(as.logical(case),na.rm=TRUE),.groups="keep") 
+
+contact.merge %>% group_by(TimePeriod,`Contact type`) %>% 
+  summarise(contacts=n(),newcase=sum(as.logical(case),na.rm=TRUE),.groups="keep") %>% View()
+
+contact.merge %>% group_by(`Contact type`) %>% 
+  summarise(contacts=n(),newcase=sum(as.logical(case),na.rm=TRUE),.groups="keep")
 
 m2 <- glm(data=contact.merge,case ~ Age.x,family=binomial)
 summary(m2)
