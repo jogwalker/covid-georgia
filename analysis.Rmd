@@ -406,6 +406,27 @@ x6 <- glm(data=contact.merge,case ~ relevel(as.factor(AgeGroup.Y),ref="50-59")+ 
 summary(x6)
 x6b <- exp(cbind(coef(x6), confint(x6)))
 
+y1 <- glm(data=contact.merge,case ~ TimePeriod,family=binomial)
+summary(y1)
+exp(cbind(coef(y1), confint(y1)))
+
+contact.merge$family <- ifelse(contact.merge$`Contact type`=="Family member","Family","Other")
+contact.merge$contactage40 <- ifelse(contact.merge$Age.y < 40, "Contact < 40","Contact > 40")
+y2 <- glm(data=contact.merge,case ~ TimePeriod + family + contactage40,family=binomial)
+summary(y2)
+exp(cbind(coef(y2), confint(y2)))
+
+y3 <- glm(data=contact.merge,case ~ family,family=binomial)
+summary(y3)
+exp(cbind(coef(y3), confint(y3)))
+
+y3 <- glm(data=contact.merge,case ~ contactage40,family=binomial)
+summary(y3)
+exp(cbind(coef(y3), confint(y3)))
+
+pdf("orplot_time.pdf",width=9,height=4)
+or_plot(contact.merge,dependent="case",explanatory=c("TimePeriod","family","contactage40"),dependent_label = "Transmission from case to contact")
+dev.off()
 
 ## new OR plots?
 library(finalfit)
@@ -431,9 +452,12 @@ ggplot(data=contact.F[contact.F$case==TRUE,],aes(x=AgeGroup.X,y=AgeGroup.Y)) + g
 
 
 CS <- contact.F %>% group_by(AgeGroup.X,AgeGroup.Y) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n)
-CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=n)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Number of contacts by age group")
-CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=p)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Proportion of contacts leading to transmission")
 
+pp1 <- CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=n)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Number of contacts by age group")+ scale_fill_distiller(guide="colourbar",direction=1,palette=1)
+pp2 <- CS %>% ggplot(aes(x=AgeGroup.X,y=AgeGroup.Y,fill=p)) + xlab("Age group of confirmed case") + ylab("Age group of contact")  + theme_minimal() + geom_tile() + ggtitle("Proportion of contacts leading to transmission") + scale_fill_distiller(guide="colourbar",direction=1,palette=2)
+pdf("heatmap.pdf",width=10,height=5)
+grid.arrange(pp1,pp2,ncol=2)
+dev.off()
 CS2b <- contact.merge %>% filter(!is.na(`Patient unique ID`)) %>% group_by(`Patient unique ID`) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n) 
 CS2 <- contact.F %>% filter(!is.na(`Patient unique ID`)) %>% group_by(`Patient unique ID`) %>% summarise(n=n(),case=sum(as.logical(case)),p=case/n) 
 
