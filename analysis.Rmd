@@ -357,6 +357,12 @@ m5 <- glm(data=contactsType.m,case ~  Age.y + Coworker + Family + Friend + Medic
 summary(m5)
 
 
+t1 <- table(contact.merge$`Contact type`,contact.merge$TimePeriod)
+chisq.test(t1)
+
+ncontacts <- contact.merge %>% group_by(TimePeriod,newPatID) %>% summarise(n=n())
+
+kruskal.test(ncontacts$n,ncontacts$TimePeriod)
 
 ```
 
@@ -424,12 +430,28 @@ y3 <- glm(data=contact.merge,case ~ contactage40,family=binomial)
 summary(y3)
 exp(cbind(coef(y3), confint(y3)))
 
+library(finalfit)
+
+
 pdf("orplot_time.pdf",width=9,height=4)
 or_plot(contact.merge,dependent="case",explanatory=c("TimePeriod","family","contactage40"),dependent_label = "Transmission from case to contact")
 dev.off()
 
+## new R and SAR calculations
+# is the contact ID also included as a case
+contact.merge$knownID <- !grepl("Patient",contact.merge$newPatID)
+
+contact.merge$onwards <-contact.merge$`Contact ID` %in% contact.merge$newPatID
+table(contact.merge$onwards)
+contact.merge$not_onwards <- ! contact.merge$newPatID %in% contact.merge$newCID[contact.merge$onwards==TRUE]
+contact.merge$not_onwards2 <- grepl("Patient",contact.merge$newPatID)
+table(contact.merge$case[contact.merge$not_onwards==TRUE & contact.merge$knownID==TRUE])
+length(unique(contact.merge$`Patient unique ID`[contact.merge$not_onwards==TRUE & contact.merge$knownID==TRUE]))
+unique(contact.merge$`Patient unique ID`[contact.merge$not_onwards==TRUE])
+prop.test(301,477)
+prop.test(301,1342)
+
 ## new OR plots?
-library(finalfit)
 
 contact.merge.plot <- contact.merge
 contact.merge.plot$Age.of.case <- relevel(as.factor(contact.merge.plot$AgeGroup.X),ref="50-59")
