@@ -45,6 +45,7 @@ library(lubridate)
 library(dplyr)
 library(ggplot2)
 library(gridExtra)
+library(Hmisc)
 
 tcols <- c("skip","skip","skip","text","logical","date",rep("text",7),"date","text","text","date",rep("text",8),"date","text","text")
 testing <- read_xlsx("./data/testing2020-06-24.xlsx",col_types=tcols)
@@ -67,25 +68,25 @@ owid$Georgia <- ifelse(owid$location=="Georgia",TRUE,FALSE)
 owidG <- owid %>% filter(location=="Georgia")
 # owidG$date2 <- as.Date(owidG$date)
 # or end date of 24 June to match other data
-c1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=new_cases)) + geom_bar(stat="identity",width=0.8,position=position_dodge()) + theme_minimal() + ylab("New cases per day") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") #+ geom_vline(xintercept=as.Date("2020-06-24"),color="red")
+c1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=new_cases)) + geom_bar(stat="identity",width=0.8,position=position_dodge()) + theme_minimal() + ylab("New cases per day") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y") #+ geom_vline(xintercept=as.Date("2020-06-24"),color="red")
 
-c2 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_cases)) + geom_line() + theme_minimal() + ylab("Cumulative cases") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
+c2 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_cases)) + geom_line() + theme_minimal() + ylab("Cumulative cases") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y") 
 
-c3 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_cases_per_million)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
+c3 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_cases_per_million)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y") 
 
-d1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_deaths)) + geom_line() + theme_minimal() + ylab("Cumulative deaths") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y") 
+d1 <- owidG %>% filter(date2 >=as.Date("2020-02-26") & date2<=as.Date("2020-07-01")) %>% ggplot(aes(x=date2,y=total_deaths)) + geom_line() + theme_minimal() + ylab("Cumulative deaths") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y") #+ theme(plot.margin=margin(r=3))
 
 owidOther <- owid %>% filter(population <=4750000 & population >= 3250000)
 
-o1 <- owidOther %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y",limits=as.Date(c("2020-03-01","2020-07-01")))  + ylim(c(0,12000))
+o1 <- owidOther %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y",limits=as.Date(c("2020-03-01","2020-07-01")))  + ylim(c(0,12000))
 
 # owid %>% filter(location %in% c("United Kingdom", "United States", "Germany", "Ireland", "France", "Spain", "Italy", "Russia","Ukraine","Switzerland","Netherlands","Croatia","Turkey","Georgia")) %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y",limits=as.Date(c("2020-03-01","2020-07-01"))) 
 
-o2 <- owid %>% filter(location %in% c("Canada","United Kingdom","France","Germany","Italy","Japan","United States","Georgia")) %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + scale_linetype(guide="none") + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y",limits=as.Date(c("2020-03-01","2020-07-01"))) + ylim(c(0,10000)) + scale_color_discrete(name="Country")
+o2 <- owid %>% filter(location %in% c("Canada","United Kingdom","France","Germany","Italy","Japan","United States","Georgia")) %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + scale_linetype(guide="none") + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y",limits=as.Date(c("2020-03-01","2020-07-01"))) + ylim(c(0,10000)) + scale_color_discrete(name="Country")
 
 
 
-o3 <- owid %>% filter(location %in% c("Russia","Armenia","Turkey","Georgia","Azerbaijan")) %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%d %b %y",limits=as.Date(c("2020-03-01","2020-07-01"))) + ylim(c(0,10000)) + scale_linetype(guide="none") + scale_color_discrete(name="Country") 
+o3 <- owid %>% filter(location %in% c("Russia","Armenia","Turkey","Georgia","Azerbaijan")) %>% ggplot(aes(x=date2,y=total_cases_per_million,color=location,linetype=Georgia)) + geom_line() + theme_minimal() + ylab("Cumulative cases per million") + xlab("Date")  + scale_x_date(date_breaks=("1 month"),date_labels="%e %b %y",limits=as.Date(c("2020-03-01","2020-07-01"))) + ylim(c(0,10000)) + scale_linetype(guide="none") + scale_color_discrete(name="Country") 
 
 
 
@@ -95,8 +96,9 @@ o2
 o3
 dev.off()
 
+
 lay <- rbind(c(1,1,2,2,3,3),c(4,4,4,5,5,5))
-pdf("panelplot.pdf",height=8,width=11)
+pdf("panelplot.pdf",height=10,width=12)
 grid.arrange(c1,c2,d1,o2,o3,layout_matrix=lay)
 dev.off()
 
@@ -417,7 +419,7 @@ summary(y1)
 exp(cbind(coef(y1), confint(y1)))
 
 contact.merge$family <- ifelse(contact.merge$`Contact type`=="Family member","Family","Other")
-contact.merge$contactage40 <- ifelse(contact.merge$Age.y < 40, "Contact < 40","Contact > 40")
+contact.merge$contactage40 <- ifelse(contact.merge$Age.y < 40, "Contact < 40","Contact \u2265 40")
 y2 <- glm(data=contact.merge,case ~ TimePeriod + family + contactage40,family=binomial)
 summary(y2)
 exp(cbind(coef(y2), confint(y2)))
@@ -432,10 +434,13 @@ exp(cbind(coef(y3), confint(y3)))
 
 library(finalfit)
 
+# add labels to columns
+var.labels = c(TimePeriod="Time period", family="Contact type",contactage40="Contact age")
+label(contact.merge) = as.list(var.labels[match(names(contact.merge), names(var.labels))])
 
-pdf("orplot_time.pdf",width=9,height=4)
-or_plot(contact.merge,dependent="case",explanatory=c("TimePeriod","family","contactage40"),dependent_label = "Transmission from case to contact")
-dev.off()
+
+p1 <- or_plot(contact.merge,dependent="case",explanatory=c("TimePeriod","family","contactage40"),dependent_label = "Transmission from case to contact")
+ggsave("orplot_time.pdf",p1,width=9,height=4,device=cairo_pdf)
 
 ## new R and SAR calculations
 # is the contact ID also included as a case
@@ -462,8 +467,13 @@ contact.merge.plot$Gender.of.case <- contact.merge.plot$Gender.x
 contact.merge.plot$Gender.of.contact <- contact.merge.plot$Gender.y
 contact.merge.plot$Gender.of.contact[contact.merge.plot$Gender.of.contact=="male"] <- "Male"
 
-or_plot(contact.merge.plot,dependent="case",explanatory=c("Age.of.case","Age.of.contact","Contact.type","Gender.of.case","Gender.of.contact"),dependent_label = "Transmission from case to contact")
+var.labels2 = c(Age.of.case="Age of case",Age.of.contact="Age of contact",Contact.type="Contact type",Gender.of.case="Gender of case",Gender.of.contact="Gender of contact")
+label(contact.merge.plot) = as.list(var.labels2[match(names(contact.merge.plot), names(var.labels2))])
+label(contact.merge.plot)
 
+pdf("or_plot1.pdf",width=10,height=10)
+or_plot(contact.merge.plot,dependent="case",explanatory=c("Age.of.case","Age.of.contact","Contact.type","Gender.of.case","Gender.of.contact"),dependent_label = "Transmission from case to contact")
+dev.off()
 
 library(ggplot2)
 contact.F <- contact.merge %>% filter(`Contact type`=="Family member" & !is.na(AgeGroup.Y))
