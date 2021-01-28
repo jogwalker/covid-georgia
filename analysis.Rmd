@@ -55,7 +55,7 @@ hcols <- c("skip","text","text","numeric","numeric","numeric","text","numeric",r
 hospital <- read_xlsx("./data/COVID19treated.xlsx",col_types=hcols)
 
 ccols <- c("")
-contacts <- read_xlsx("./data/contacts30June_updated.xlsx",skip=1)
+contacts <- read_xlsx("./data/contacts30June_updated_recleaned.xlsx",skip=1)
 ```
 
 
@@ -170,7 +170,15 @@ knitr::kable(summary(tableH,
 ))
 
 
+tableH2 <- tableby(Gender ~ .,
+  data = hospital2[,c("Age","Gender","Severity of the disease","length","outcome","diagnosisdate", "Grouping1")], #"Hospitalization date (day / month / year)","hosplag",
+  control = my_controls
+)
 
+knitr::kable(summary(tableH2,
+  labelTranslations = my_labelsH,
+  title = "Characteristics of COVID-19 patients by gender"
+))
 ```
 
 ###Table of demographics of those tested (tested database)
@@ -364,9 +372,18 @@ t1 <- table(contact.merge$`Contact type`,contact.merge$TimePeriod)
 chisq.test(t1)
 
 ncontacts <- contact.merge %>% group_by(TimePeriod,newPatID) %>% summarise(n=n())
+ncontactsall <- contact.merge %>% group_by(newPatID) %>% summarise(n=n())
+table(ncontactsall$n)
+median(ncontactsall$n)
 
 kruskal.test(ncontacts$n,ncontacts$TimePeriod)
 
+
+library(epitools)
+pois.exact(795,917)
+pois.exact(301,477)
+
+binom.test(795,2882)
 ```
 
 Rates of transmission by type of contact, gender and age of index case - table as in Bi
